@@ -26,7 +26,7 @@ from views.map_view import (
 st.set_page_config(
     page_title="Clustering Analysis App",
     page_icon="📊",
-    layout="wide"
+    layout="centered"
 )
 
 st.title("📊 Clustering Analysis App")
