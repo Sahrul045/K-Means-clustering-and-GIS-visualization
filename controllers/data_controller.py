@@ -3,7 +3,9 @@ from typing import Tuple, Dict, Any
 from models.data_model import DatasetMetadata, NormalizationResult
 from services.preprocessing import (
     detect_numeric_columns, 
+    detect_potential_numeric_columns,  # Ditambahkan
     detect_non_numeric_columns, 
+    validate_numeric_columns,
     check_missing_values, 
     normalize_minmax,
     convert_to_numpy
@@ -24,9 +26,27 @@ class DataController:
         # Baca data
         df = read_csv_file(file_path)
         
-        # Deteksi kolom
+        # Deteksi kolom numerik dan potensial numerik
         numeric_cols = detect_numeric_columns(df)
+        potential_numeric_cols = detect_potential_numeric_columns(df)
         non_numeric_cols = detect_non_numeric_columns(df)
+        
+        # Gabungkan kolom numerik dan potensial numerik
+        all_numeric_cols = numeric_cols + potential_numeric_cols
+        
+        if not all_numeric_cols:
+            raise ValueError("Tidak ditemukan kolom numerik dalam dataset.")
+        
+        # Validasi kolom numerik
+        is_valid, errors = validate_numeric_columns(df, all_numeric_cols)
+        if not is_valid:
+            error_msg = "Ditemukan nilai non-numerik dalam kolom numerik:\n"
+            for col, rows in errors.items():
+                # Konversi index ke nomor baris (dimulai dari 2 karena header + 1-based indexing)
+                row_numbers = [r + 2 for r in rows]
+                error_msg += f"- Kolom '{col}': Baris {row_numbers}\n"
+            error_msg += "\nSilakan periksa data Anda dan pastikan kolom numerik hanya berisi angka."
+            raise ValueError(error_msg)
         
         # Handle missing values
         df_clean, missing_info = check_missing_values(df)
@@ -38,7 +58,7 @@ class DataController:
         self.dataset_metadata = DatasetMetadata(
             filename=filename,
             columns=df_clean.columns.tolist(),
-            numeric_columns=numeric_cols,
+            numeric_columns=all_numeric_cols,
             non_numeric_columns=non_numeric_cols,
             row_count=len(df_clean),
             memory_usage_mb=df_clean.memory_usage(deep=True).sum() / 1024 ** 2,
@@ -47,8 +67,8 @@ class DataController:
         )
         
         # Normalisasi data
-        df_norm, norm_params = normalize_minmax(df_clean, numeric_cols)
-        scaled_data = convert_to_numpy(df_norm, numeric_cols)
+        df_norm, norm_params = normalize_minmax(df_clean, all_numeric_cols)
+        scaled_data = convert_to_numpy(df_norm, all_numeric_cols)
         
         # Simpan hasil normalisasi
         self.normalization_result = NormalizationResult(

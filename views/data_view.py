@@ -4,7 +4,7 @@ from models.data_model import DatasetMetadata, NormalizationResult
 
 def display_dataset_metadata(metadata: DatasetMetadata):
     """Menampilkan metadata dataset"""
-    st.subheader("📊 Metadata Dataset")
+    st.subheader("Metadata Dataset")
     
     col1, col2, col3 = st.columns(3)
     with col1:

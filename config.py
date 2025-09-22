@@ -1,6 +1,6 @@
 import os
 
-# Path konfigurasi - HAPUS DUPLIKASI
+# Path konfigurasi
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 UPLOAD_DIR = os.path.join(DATA_DIR, "input")
@@ -26,10 +26,12 @@ CLUSTER_COLORS = {
     6: '#FFE5CC',  # Oranye muda
 }
 
-# Konfigurasi Shapefile dan Peta - HAPUS DUPLIKASI
-SHAPEFILE_PATH = os.path.join(SHAPEFILE_DIR, "sultra.shp")
-# SESUAIKAN DENGAN geoprocessing.py - ubah ke 'KAB_KOTA'
-SHAPEFILE_KEY_COLUMN = "KAB_KOTA"  # Diubah dari "KABKOTA" menjadi "KAB_KOTA"
+# Konfigurasi Shapefile dan Peta
+SHAPEFILE_PATH = os.path.join(SHAPEFILE_DIR, "sultra_kabupaten.shp")  # Diubah ke nama file yang sesuai
+SHAPEFILE_KEY_COLUMN = "KAB_KOTA"
+
+# Path ke shapefile default (zip)
+SHAPEFILE_ZIP_PATH = os.path.join(SHAPEFILE_DIR, "sultra_kabupaten_shapefile.zip")
 
 # Map configuration
 MAP_CENTER = [-4.0, 122.0]  # Koordinat tengah peta Sulawesi Tenggara

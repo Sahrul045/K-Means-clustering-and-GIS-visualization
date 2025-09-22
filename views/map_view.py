@@ -4,22 +4,33 @@ import tempfile
 import os
 import zipfile
 
-def display_shapefile_uploader():
-    """Menampilkan uploader untuk shapefile zip"""
-    st.subheader("🗺️ Upload Shapefile")
+def display_shapefile_option():
+    """Menampilkan opsi pemilihan shapefile"""
+    st.subheader("Pilihan Shapefile")
     
-    uploaded_zip = st.file_uploader(
-        "Unggah file ZIP shapefile Sulawesi Tenggara", 
-        type=["zip"],
-        help="File ZIP harus berisi shapefile (.shp, .shx, .dbf, etc.) untuk wilayah Sulawesi Tenggara",
-        key="shapefile_uploader"
+    option = st.radio(
+        "Pilih sumber shapefile:",
+        ["Default", "Custom"],
+        help="Pilih 'Default' untuk menggunakan shapefile bawaan sistem atau 'Custom' untuk mengunggah sendiri",
+        key="shapefile_option"
     )
     
-    return uploaded_zip
+    uploaded_zip = None
+    if option == "Custom":
+        uploaded_zip = st.file_uploader(
+            "Unggah file ZIP shapefile Sulawesi Tenggara", 
+            type=["zip"],
+            help="File ZIP harus berisi shapefile (.shp, .shx, .dbf, etc.) untuk wilayah Sulawesi Tenggara",
+            key="shapefile_uploader"
+        )
+    else:
+        st.info("Menggunakan shapefile default untuk Sulawesi Tenggara.")
+    
+    return uploaded_zip, option
 
 def display_merge_report(merge_report):
     """Menampilkan laporan hasil merge data"""
-    st.subheader("📊 Laporan Integrasi Data")
+    st.subheader("Laporan Integrasi Data")
     
     col1, col2 = st.columns(2)
     
@@ -63,7 +74,7 @@ def display_choropleth_map(choropleth_map, height=600):
     # Gunakan container untuk mencegah rerender yang tidak perlu
     with st.container():
         # Tampilkan peta dengan key unik
-        map_data = st_folium(
+        st_folium(
             choropleth_map, 
             width=700, 
             height=height,
@@ -76,7 +87,6 @@ def display_choropleth_map(choropleth_map, height=600):
     Setiap warna mewakili cluster yang berbeda.
     """)
     
-    return map_data
 
 def display_geodata_download_options(gdf, filename_prefix="clustering"):
     """Menampilkan opsi download untuk data geospatial"""
@@ -99,7 +109,7 @@ def display_geodata_download_options(gdf, filename_prefix="clustering"):
         # Download sebagai Shapefile (zip)
         with tempfile.TemporaryDirectory() as tmp_dir:
             shp_path = os.path.join(tmp_dir, f"{filename_prefix}.shp")
-            gdf.to_file(shp_path, encoding='utf-8')
+            gdf.to_file(shp_path, encoding='utf-8') 
             
             # Buat zip file
             zip_path = os.path.join(tmp_dir, f"{filename_prefix}.zip")

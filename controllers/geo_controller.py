@@ -1,11 +1,11 @@
 import geopandas as gpd
-import mapclassify
 import streamlit as st
 import tempfile
 import zipfile
+import folium
 import os
-import numpy as np
-from config import SHAPEFILE_PATH, SHAPEFILE_KEY_COLUMN
+import shutil
+from config import SHAPEFILE_PATH, SHAPEFILE_KEY_COLUMN, SHAPEFILE_ZIP_PATH, SHAPEFILE_DIR
 from services.geoprocessing import GeoProcessingService
 from services.map_visualization import MapVisualizationService
 
@@ -15,19 +15,40 @@ class GeoController:
         self.geo_processor = GeoProcessingService()
         self.map_visualizer = MapVisualizationService()
         self.extract_dir = None
-        self.load_shapefile()
-    
-    def load_shapefile(self):
-        """Memuat shapefile default untuk Sulawesi Tenggara"""
+
+    def load_default_shapefile(self):
+        """Memuat shapefile default dari zip"""
         try:
-            if os.path.exists(SHAPEFILE_PATH):
-                self.shapefile = gpd.read_file(SHAPEFILE_PATH)
-            else:
-                self.shapefile = None
+            # Periksa apakah file zip ada di lokasi yang benar
+            if not os.path.exists(SHAPEFILE_ZIP_PATH):
+                st.error(f"File shapefile default tidak ditemukan di: {SHAPEFILE_ZIP_PATH}")
+                st.info("""
+                Silakan lakukan salah satu dari berikut:
+                1. Pastikan file 'sultra_kabupaten_shapefile.zip' ada di direktori 'data/shapefiles/'
+                2. Atau unggah shapefile custom menggunakan opsi 'Custom'
+                """)
+                return False
+
+            # Ekstrak zip default ke temporary directory
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                with zipfile.ZipFile(SHAPEFILE_ZIP_PATH, 'r') as zip_ref:
+                    zip_ref.extractall(tmp_dir)
+                
+                # Baca shapefile yang diekstrak
+                shp_files = [f for f in os.listdir(tmp_dir) if f.endswith('.shp')]
+                if shp_files:
+                    self.shapefile = gpd.read_file(os.path.join(tmp_dir, shp_files[0]))
+                    st.success("Shapefile default berhasil diekstrak dan dimuat.")
+                    return True
+                else:
+                    st.error("Tidak ada file .shp dalam zip shapefile default.")
+                    return False
         except Exception as e:
-            print(f"Peringatan: Gagal memuat shapefile default: {str(e)}")
-            self.shapefile = None
-    
+            st.error(f"Gagal memuat shapefile default: {str(e)}")
+            import traceback
+            st.error(traceback.format_exc())
+            return False
+
     def process_uploaded_shapefile(self, uploaded_zip):
         """Memproses shapefile zip yang diupload"""
         try:
@@ -54,7 +75,7 @@ class GeoController:
         try:
             # Pastikan shapefile sudah dimuat
             if self.shapefile is None:
-                raise Exception("Shapefile belum dimuat. Silakan upload shapefile terlebih dahulu.")
+                raise Exception("Shapefile belum dimuat. Silakan pilih opsi shapefile terlebih dahulu.")
             
             # Pastikan data clustering memiliki kolom Cluster
             if 'Cluster' not in clustering_data.columns:
@@ -75,28 +96,33 @@ class GeoController:
     def generate_choropleth_map(self, merged_data, numeric_cols, best_k):
         """
         Menghasilkan peta choropleth untuk visualisasi cluster
-        
-        Args:
-            merged_data (geopandas.GeoDataFrame): Data yang sudah digabung dengan geodata
-            numeric_cols (list): Daftar kolom numerik
-            best_k (int): Jumlah cluster terbaik
-        
-        Returns:
-            folium.Map: Peta choropleth
         """
         try:
             # Pastikan kolom Cluster ada dalam data
             if 'Cluster' not in merged_data.columns:
                 raise ValueError("Kolom 'Cluster' tidak ditemukan dalam data yang digabung")
             
-            return self.map_visualizer.create_choropleth_map(merged_data, numeric_cols, best_k)
+            # Pastikan data memiliki geometri
+            if not hasattr(merged_data, 'geometry') or merged_data.geometry.isnull().all():
+                raise ValueError("Data tidak memiliki geometri yang valid")
+            
+            # Buat peta
+            choropleth_map = self.map_visualizer.create_choropleth_map(merged_data, numeric_cols, best_k)
+            
+            # Pastikan peta berhasil dibuat
+            if choropleth_map is None:
+                raise ValueError("Map visualizer gagal membuat peta")
+                
+            return choropleth_map
+                
         except Exception as e:
-            # Jika terjadi error, kembalikan peta dasar
             st.error(f"Error generating choropleth map: {str(e)}")
+            import traceback
+            print(f"Error detail: {traceback.format_exc()}")
             import folium
             from config import MAP_CENTER, MAP_ZOOM
             return folium.Map(location=MAP_CENTER, zoom_start=MAP_ZOOM)
-    
+        
     def save_geodata(self, gdf, output_path):
         """Menyimpan data geospatial ke file"""
         try:
@@ -108,6 +134,5 @@ class GeoController:
     def cleanup_temp_files(self):
         """Membersihkan file temporer"""
         if self.extract_dir and os.path.exists(self.extract_dir):
-            import shutil
             shutil.rmtree(self.extract_dir)
             self.extract_dir = None
